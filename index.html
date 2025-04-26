@@ -61,6 +61,17 @@
         })
         .subscribe();
     }
+document.getElementById('clear-messages').addEventListener('click', async () => {
+  if (confirm('Are you sure you want to delete ALL messages?')) {
+    const { error } = await supabase.from('messages').delete().neq('id', 0);
+    if (error) {
+      console.error('Error deleting messages:', error);
+    } else {
+      alert('All messages deleted!');
+      document.getElementById('messages').innerHTML = '';
+    }
+  }
+});
 
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('username-form').addEventListener('submit', e => {
@@ -86,7 +97,7 @@
 </head>
 <body>
   <h1>🗨️Dis-Site</h1>
-
+<button id="clear-messages">🗑 Clear All Messages</button>
   <div id="username-section">
     <form id="username-form">
       <label>Choose a username:</label>
