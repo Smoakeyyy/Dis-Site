@@ -8,16 +8,27 @@
     body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 1rem; }
     #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
     .message { margin-bottom: 0.5rem; }
+    #chat-section { display: none; }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // 🔑 Replace with your Supabase credentials
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Truncated for security
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let username = '';
+    let currentUser = null;
+
+    async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        currentUser = user;
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('chat-section').style.display = 'block';
+        loadMessages();
+        setupRealtime();
+      }
+    }
 
     async function loadMessages() {
       const { data, error } = await supabase
@@ -43,7 +54,7 @@
 
     async function sendMessage(content) {
       const { error } = await supabase.from('messages').insert([
-        { username, content }
+        { username: currentUser.email, content }
       ]);
       if (error) console.error(error);
     }
@@ -62,22 +73,38 @@
         .subscribe();
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('username-form').addEventListener('submit', e => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      checkUser();
+
+      document.getElementById('auth-form').addEventListener('submit', async e => {
         e.preventDefault();
-        username = document.getElementById('username').value;
-        document.getElementById('username-section').style.display = 'none';
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          // Try to sign up if sign-in fails
+          ({ data, error } = await supabase.auth.signUp({ email, password }));
+          if (error) {
+            alert('Signup/Login failed: ' + error.message);
+            return;
+          }
+        }
+
+        currentUser = data.user;
+        document.getElementById('auth-section').style.display = 'none';
         document.getElementById('chat-section').style.display = 'block';
         loadMessages();
         setupRealtime();
       });
 
-      document.getElementById('chat-form').addEventListener('submit', e => {
+      document.getElementById('chat-form').addEventListener('submit', async e => {
         e.preventDefault();
         const input = document.getElementById('message');
         const content = input.value.trim();
         if (content) {
-          sendMessage(content);
+          await sendMessage(content);
           input.value = '';
         }
       });
@@ -87,15 +114,17 @@
 <body>
   <h1>🗨️Dis-Site</h1>
 
-  <div id="username-section">
-    <form id="username-form">
-      <label>Choose a username:</label>
-      <input type="text" id="username" required />
-      <button type="submit">Enter Chat</button>
+  <div id="auth-section">
+    <form id="auth-form">
+      <label>Email:</label><br />
+      <input type="email" id="email" required /><br />
+      <label>Password:</label><br />
+      <input type="password" id="password" required /><br /><br />
+      <button type="submit">Sign In / Sign Up</button>
     </form>
   </div>
 
-  <div id="chat-section" style="display:none;">
+  <div id="chat-section">
     <div id="messages"></div>
     <form id="chat-form">
       <input type="text" id="message" placeholder="Type your message..." required autocomplete="off"/>
