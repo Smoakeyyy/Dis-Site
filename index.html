@@ -8,13 +8,36 @@
     body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 1rem; }
     #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
     .message { margin-bottom: 0.5rem; }
+
     #chat-section, #profile-section { display: none; margin-top: 2rem; }
+
+    /* Modal styles */
+    #username-modal {
+      display: none; 
+      position: fixed; 
+      z-index: 999; 
+      left: 0; top: 0; width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5); 
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      margin: 10% auto;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 8px;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+    }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA'; // keep private
+    const supabaseKey = 'YOUR_SUPABASE_KEY_HERE';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
@@ -91,6 +114,7 @@
       if (!error) {
         username = newName;
         alert('Username updated!');
+        document.getElementById('username-modal').style.display = 'none';
       } else {
         console.error('Error updating username:', error);
         alert('Failed to update username.');
@@ -144,11 +168,30 @@
         }
       });
 
-      document.getElementById('profile-form').addEventListener('submit', async e => {
+      // Show modal
+      document.getElementById('change-username-btn').addEventListener('click', () => {
+        document.getElementById('username-modal').style.display = 'block';
+        document.getElementById('new-username').value = username;
+      });
+
+      // Hide modal on close
+      document.getElementById('close-modal').addEventListener('click', () => {
+        document.getElementById('username-modal').style.display = 'none';
+      });
+
+      // Hide modal on outside click
+      window.addEventListener('click', e => {
+        if (e.target === document.getElementById('username-modal')) {
+          document.getElementById('username-modal').style.display = 'none';
+        }
+      });
+
+      // Handle username form submit
+      document.getElementById('username-form').addEventListener('submit', async e => {
         e.preventDefault();
-        const newUsername = document.getElementById('new-username').value.trim();
-        if (newUsername) {
-          await changeUsername(newUsername);
+        const newName = document.getElementById('new-username').value.trim();
+        if (newName) {
+          await changeUsername(newName);
         }
       });
     });
@@ -177,11 +220,19 @@
 
   <div id="profile-section">
     <h2>👤 Profile</h2>
-    <form id="profile-form">
-      <label>Change Display Name:</label><br />
-      <input type="text" id="new-username" required />
-      <button type="submit">Update</button>
-    </form>
+    <button id="change-username-btn">Change Username</button>
+  </div>
+
+  <!-- Modal -->
+  <div id="username-modal">
+    <div class="modal-content">
+      <h2>Change Display Name</h2>
+      <form id="username-form">
+        <input type="text" id="new-username" required />
+        <button type="submit">Update</button>
+      </form>
+      <button id="close-modal" style="margin-top: 10px;">Close</button>
+    </div>
   </div>
 </body>
 </html>
