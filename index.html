@@ -8,27 +8,17 @@
     body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 1rem; }
     #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
     .message { margin-bottom: 0.5rem; }
-    #chat-section { display: none; }
+    #chat-section, #profile-section { display: none; margin-top: 2rem; }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA'; // Truncated for security
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA'; // replace this with your real anon key
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
-
-    async function checkUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        currentUser = user;
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('chat-section').style.display = 'block';
-        loadMessages();
-        setupRealtime();
-      }
-    }
+    let username = '';
 
     async function loadMessages() {
       const { data, error } = await supabase
@@ -54,7 +44,7 @@
 
     async function sendMessage(content) {
       const { error } = await supabase.from('messages').insert([
-        { username: currentUser.email, content }
+        { username, content }
       ]);
       if (error) console.error(error);
     }
@@ -73,8 +63,37 @@
         .subscribe();
     }
 
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Profile load error:', error);
+      }
+
+      if (data) {
+        username = data.username;
+      } else {
+        username = prompt("Choose a display name:");
+        await supabase.from('profiles').insert([{ id: currentUser.id, username }]);
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
-      checkUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      currentUser = user;
+
+      if (user) {
+        await loadProfile();
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('chat-section').style.display = 'block';
+        document.getElementById('profile-section').style.display = 'block';
+        loadMessages();
+        setupRealtime();
+      }
 
       document.getElementById('auth-form').addEventListener('submit', async e => {
         e.preventDefault();
@@ -84,7 +103,6 @@
         let { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
-          // Try to sign up if sign-in fails
           ({ data, error } = await supabase.auth.signUp({ email, password }));
           if (error) {
             alert('Signup/Login failed: ' + error.message);
@@ -93,8 +111,10 @@
         }
 
         currentUser = data.user;
+        await loadProfile();
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('chat-section').style.display = 'block';
+        document.getElementById('profile-section').style.display = 'block';
         loadMessages();
         setupRealtime();
       });
@@ -106,6 +126,24 @@
         if (content) {
           await sendMessage(content);
           input.value = '';
+        }
+      });
+
+      document.getElementById('profile-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const newUsername = document.getElementById('new-username').value.trim();
+        if (newUsername) {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ username: newUsername })
+            .eq('id', currentUser.id);
+
+          if (!error) {
+            username = newUsername;
+            alert("Username updated!");
+          } else {
+            console.error(error);
+          }
         }
       });
     });
@@ -129,6 +167,15 @@
     <form id="chat-form">
       <input type="text" id="message" placeholder="Type your message..." required autocomplete="off"/>
       <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <div id="profile-section">
+    <h2>👤 Profile</h2>
+    <form id="profile-form">
+      <label>Change Display Name:</label><br />
+      <input type="text" id="new-username" required />
+      <button type="submit">Update</button>
     </form>
   </div>
 </body>
