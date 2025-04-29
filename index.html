@@ -5,19 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dis-Site</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 1rem; }
-    #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; margin-bottom: 1rem; }
-    .message { margin-bottom: 0.5rem; }
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    #messages {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+    .message {
+      margin-bottom: 0.5rem;
+    }
 
-    #chat-section, #profile-section { display: none; margin-top: 2rem; }
+    #chat-section, #profile-section {
+      display: none;
+      margin-top: 2rem;
+    }
+
+    /* Tabs */
+    #tabs {
+      display: none;
+      margin-top: 1rem;
+      border-bottom: 1px solid #ccc;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      margin-right: 1rem;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      font-weight: bold;
+      border-bottom: 2px solid #333;
+    }
 
     /* Modal styles */
     #username-modal {
-      display: none; 
-      position: fixed; 
-      z-index: 999; 
+      display: none;
+      position: fixed;
+      z-index: 999;
       left: 0; top: 0; width: 100%; height: 100%;
-      background-color: rgba(0, 0, 0, 0.5); 
+      background-color: rgba(0, 0, 0, 0.5);
     }
 
     .modal-content {
@@ -28,16 +62,12 @@
       max-width: 400px;
       border-radius: 8px;
     }
-
-    .modal-content h2 {
-      margin-top: 0;
-    }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
@@ -59,7 +89,7 @@
       data.forEach(msg => {
         const el = document.createElement('div');
         el.className = 'message';
-        el.textContent = ${msg.username}: ${msg.content};
+        el.textContent = `${msg.username}: ${msg.content}`;
         messagesDiv.appendChild(el);
       });
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -79,9 +109,10 @@
           const msg = payload.new;
           const el = document.createElement('div');
           el.className = 'message';
-          el.textContent = ${msg.username}: ${msg.content};
-          document.getElementById('messages').appendChild(el);
-          document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+          el.textContent = `${msg.username}: ${msg.content}`;
+          const messages = document.getElementById('messages');
+          messages.appendChild(el);
+          messages.scrollTop = messages.scrollHeight;
         })
         .subscribe();
     }
@@ -121,6 +152,16 @@
       }
     }
 
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('chat-tab').classList.remove('active');
+      document.getElementById('settings-tab').classList.remove('active');
+      document.getElementById(tabId + '-tab').classList.add('active');
+
+      document.getElementById('chat-section').style.display = (tabId === 'chat') ? 'block' : 'none';
+      document.getElementById('profile-section').style.display = (tabId === 'settings') ? 'block' : 'none';
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
       const { data: { user } } = await supabase.auth.getUser();
       currentUser = user;
@@ -128,8 +169,8 @@
       if (user) {
         await loadProfile();
         document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('chat-section').style.display = 'block';
-        document.getElementById('profile-section').style.display = 'block';
+        document.getElementById('tabs').style.display = 'block';
+        showTab('chat');
         loadMessages();
         setupRealtime();
       }
@@ -152,8 +193,8 @@
         currentUser = data.user;
         await loadProfile();
         document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('chat-section').style.display = 'block';
-        document.getElementById('profile-section').style.display = 'block';
+        document.getElementById('tabs').style.display = 'block';
+        showTab('chat');
         loadMessages();
         setupRealtime();
       });
@@ -168,25 +209,21 @@
         }
       });
 
-      // Show modal
       document.getElementById('change-username-btn').addEventListener('click', () => {
         document.getElementById('username-modal').style.display = 'block';
         document.getElementById('new-username').value = username;
       });
 
-      // Hide modal on close
       document.getElementById('close-modal').addEventListener('click', () => {
         document.getElementById('username-modal').style.display = 'none';
       });
 
-      // Hide modal on outside click
       window.addEventListener('click', e => {
         if (e.target === document.getElementById('username-modal')) {
           document.getElementById('username-modal').style.display = 'none';
         }
       });
 
-      // Handle username form submit
       document.getElementById('username-form').addEventListener('submit', async e => {
         e.preventDefault();
         const newName = document.getElementById('new-username').value.trim();
@@ -194,6 +231,15 @@
           await changeUsername(newName);
         }
       });
+
+      document.getElementById('sign-out-btn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        location.reload();
+      });
+
+      // Tab buttons
+      document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'));
+      document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'));
     });
   </script>
 </head>
@@ -210,6 +256,11 @@
     </form>
   </div>
 
+  <div id="tabs">
+    <button id="chat-tab" class="tab-btn active">💬 Chat</button>
+    <button id="settings-tab" class="tab-btn">⚙️ Settings</button>
+  </div>
+
   <div id="chat-section">
     <div id="messages"></div>
     <form id="chat-form">
@@ -221,9 +272,10 @@
   <div id="profile-section">
     <h2>👤 Profile</h2>
     <button id="change-username-btn">Change Username</button>
+    <br/><br/>
+    <button id="sign-out-btn">Sign Out</button>
   </div>
 
-  <!-- Modal -->
   <div id="username-modal">
     <div class="modal-content">
       <h2>Change Display Name</h2>
