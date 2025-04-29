@@ -14,7 +14,7 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA'; // replace this with your real anon key
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // keep private
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
@@ -82,6 +82,21 @@
       }
     }
 
+    async function changeUsername(newName) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: newName })
+        .eq('id', currentUser.id);
+
+      if (!error) {
+        username = newName;
+        alert('Username updated!');
+      } else {
+        console.error('Error updating username:', error);
+        alert('Failed to update username.');
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
       const { data: { user } } = await supabase.auth.getUser();
       currentUser = user;
@@ -133,17 +148,7 @@
         e.preventDefault();
         const newUsername = document.getElementById('new-username').value.trim();
         if (newUsername) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ username: newUsername })
-            .eq('id', currentUser.id);
-
-          if (!error) {
-            username = newUsername;
-            alert("Username updated!");
-          } else {
-            console.error(error);
-          }
+          await changeUsername(newUsername);
         }
       });
     });
