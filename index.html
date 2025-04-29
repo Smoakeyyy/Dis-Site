@@ -59,7 +59,7 @@
       data.forEach(msg => {
         const el = document.createElement('div');
         el.className = 'message';
-        el.textContent = `${msg.username}: ${msg.content}`;
+        el.textContent = ${msg.username}: ${msg.content};
         messagesDiv.appendChild(el);
       });
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -79,7 +79,7 @@
           const msg = payload.new;
           const el = document.createElement('div');
           el.className = 'message';
-          el.textContent = `${msg.username}: ${msg.content}`;
+          el.textContent = ${msg.username}: ${msg.content};
           document.getElementById('messages').appendChild(el);
           document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
         })
@@ -168,33 +168,31 @@
         }
       });
 
+      // Show modal
       document.getElementById('change-username-btn').addEventListener('click', () => {
         document.getElementById('username-modal').style.display = 'block';
         document.getElementById('new-username').value = username;
       });
 
+      // Hide modal on close
       document.getElementById('close-modal').addEventListener('click', () => {
         document.getElementById('username-modal').style.display = 'none';
       });
 
+      // Hide modal on outside click
       window.addEventListener('click', e => {
         if (e.target === document.getElementById('username-modal')) {
           document.getElementById('username-modal').style.display = 'none';
         }
       });
 
+      // Handle username form submit
       document.getElementById('username-form').addEventListener('submit', async e => {
         e.preventDefault();
         const newName = document.getElementById('new-username').value.trim();
         if (newName) {
           await changeUsername(newName);
         }
-      });
-
-      // 🔥 Sign out button functionality
-      document.getElementById('sign-out-btn').addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        location.reload();
       });
     });
   </script>
@@ -223,8 +221,6 @@
   <div id="profile-section">
     <h2>👤 Profile</h2>
     <button id="change-username-btn">Change Username</button>
-    <br/><br/>
-    <button id="sign-out-btn">Sign Out</button> <!-- 🔥 Sign Out button -->
   </div>
 
   <!-- Modal -->
