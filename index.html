@@ -1,200 +1,166 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Real-Time Chat</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #chat-section, #profile-section, #tabs { display: none; }
-    .tab-btn { margin-right: 10px; padding: 10px; }
-    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; margin-bottom: 10px; }
-    .message { margin-bottom: 5px; }
-    #username-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-    .modal-content { background: white; padding: 20px; margin: 100px auto; width: 300px; }
-  </style>
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+<!-- ... previous HTML ... -->
 
-    const supabaseUrl = "https://otlbovqmbgmblrnkkbtd.supabase.co"
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA"
-    const supabase = createClient(supabaseUrl, supabaseKey)
+<div id="chat-section">
+  <div id="user-info" style="margin-bottom: 10px; font-weight: bold;"></div>
+  <div id="messages"></div>
+  <form id="chat-form">
+    <input id="message" type="text" placeholder="Say something..." required />
+    <button type="submit">Send</button>
+  </form>
+</div>
 
-    const messagesDiv = document.getElementById("messages")
-    const chatForm = document.getElementById("chat-form")
-    const messageInput = document.getElementById("message")
-    const authSection = document.getElementById("auth-section")
-    const chatSection = document.getElementById("chat-section")
-    const profileSection = document.getElementById("profile-section")
-    const tabs = document.getElementById("tabs")
-    const authForm = document.getElementById("auth-form")
-    const usernameModal = document.getElementById("username-modal")
-    const usernameForm = document.getElementById("username-form")
-    const newUsernameInput = document.getElementById("new-username")
-    const changeUsernameBtn = document.getElementById("change-username-btn")
-    const closeModalBtn = document.getElementById("close-modal")
-    const signOutBtn = document.getElementById("sign-out-btn")
+<!-- ... rest of HTML stays the same ... -->
 
-    let currentUser = null
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-    const showTab = (tab) => {
-      chatSection.style.display = tab === "chat" ? "block" : "none"
-      profileSection.style.display = tab === "settings" ? "block" : "none"
-    }
+  const supabaseUrl = "https://otlbovqmbgmblrnkkbtd.supabase.co"
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA"
+  const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const loadMessages = async () => {
-      const { data: messages } = await supabase
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: true })
+  const messagesDiv = document.getElementById("messages")
+  const chatForm = document.getElementById("chat-form")
+  const messageInput = document.getElementById("message")
+  const authSection = document.getElementById("auth-section")
+  const chatSection = document.getElementById("chat-section")
+  const profileSection = document.getElementById("profile-section")
+  const tabs = document.getElementById("tabs")
+  const authForm = document.getElementById("auth-form")
+  const usernameModal = document.getElementById("username-modal")
+  const usernameForm = document.getElementById("username-form")
+  const newUsernameInput = document.getElementById("new-username")
+  const changeUsernameBtn = document.getElementById("change-username-btn")
+  const closeModalBtn = document.getElementById("close-modal")
+  const signOutBtn = document.getElementById("sign-out-btn")
+  const userInfo = document.getElementById("user-info")
 
-      messagesDiv.innerHTML = ""
-      messages.forEach((msg) => {
+  let currentUser = null
+
+  const showTab = (tab) => {
+    chatSection.style.display = tab === "chat" ? "block" : "none"
+    profileSection.style.display = tab === "settings" ? "block" : "none"
+  }
+
+  const loadMessages = async () => {
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("*")
+      .order("created_at", { ascending: true })
+
+    messagesDiv.innerHTML = ""
+    messages.forEach((msg) => {
+      const div = document.createElement("div")
+      div.className = "message"
+      div.textContent = `${msg.username}: ${msg.text}`
+      messagesDiv.appendChild(div)
+    })
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight
+  }
+
+  const setupRealtime = () => {
+    supabase
+      .channel("messages")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const msg = payload.new
         const div = document.createElement("div")
         div.className = "message"
         div.textContent = `${msg.username}: ${msg.text}`
         messagesDiv.appendChild(div)
+        messagesDiv.scrollTop = messagesDiv.scrollHeight
       })
+      .subscribe()
+  }
 
-      messagesDiv.scrollTop = messagesDiv.scrollHeight
+  const showMainUI = () => {
+    authSection.style.display = "none"
+    tabs.style.display = "block"
+    chatSection.style.display = "block"
+    displayUsername()
+  }
+
+  const displayUsername = () => {
+    if (currentUser) {
+      const name = currentUser.user_metadata?.username || "Anonymous"
+      userInfo.textContent = `Logged in as: ${name}`
+    }
+  }
+
+  const updateUserMetadata = async (newUsername) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { username: newUsername }
+    })
+
+    if (error) {
+      alert("Failed to update username.")
+    } else {
+      currentUser.user_metadata.username = newUsername
+      displayUsername()
+      alert("Username updated!")
+    }
+  }
+
+  const sendMessage = async (text) => {
+    if (!currentUser || !text.trim()) return
+    const username = currentUser.user_metadata?.username || "Anonymous"
+    await supabase.from("messages").insert([{ username, text }])
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      currentUser = session.user
+      showMainUI()
+      loadMessages()
+      setupRealtime()
     }
 
-    const setupRealtime = () => {
-      supabase
-        .channel("messages")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-          const msg = payload.new
-          const div = document.createElement("div")
-          div.className = "message"
-          div.textContent = `${msg.username}: ${msg.text}`
-          messagesDiv.appendChild(div)
-          messagesDiv.scrollTop = messagesDiv.scrollHeight
-        })
-        .subscribe()
-    }
-
-    const showMainUI = () => {
-      authSection.style.display = "none"
-      tabs.style.display = "block"
-      chatSection.style.display = "block"
-    }
-
-    const updateUserMetadata = async (newUsername) => {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { username: newUsername }
-      })
-
-      if (error) {
-        alert("Failed to update username.")
-      } else {
-        alert("Username updated!")
-      }
-    }
-
-    const sendMessage = async (text) => {
-      if (!currentUser || !text.trim()) return
-      const username = currentUser.user_metadata?.username || "Anonymous"
-      await supabase.from("messages").insert([{ username, text }])
-    }
-
-    document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
         currentUser = session.user
         showMainUI()
         loadMessages()
         setupRealtime()
       }
-
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (session?.user) {
-          currentUser = session.user
-          showMainUI()
-          loadMessages()
-          setupRealtime()
-        }
-      })
-
-      authForm.addEventListener("submit", async (e) => {
-        e.preventDefault()
-        const email = document.getElementById("email").value
-        const password = document.getElementById("password").value
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password })
-          if (signUpError) alert("Error signing up: " + signUpError.message)
-        }
-      })
-
-      chatForm.addEventListener("submit", async (e) => {
-        e.preventDefault()
-        await sendMessage(messageInput.value)
-        messageInput.value = ""
-      })
-
-      changeUsernameBtn.addEventListener("click", () => {
-        usernameModal.style.display = "block"
-      })
-
-      closeModalBtn.addEventListener("click", () => {
-        usernameModal.style.display = "none"
-      })
-
-      usernameForm.addEventListener("submit", async (e) => {
-        e.preventDefault()
-        await updateUserMetadata(newUsernameInput.value)
-        usernameModal.style.display = "none"
-      })
-
-      signOutBtn.addEventListener("click", async () => {
-        await supabase.auth.signOut()
-        location.reload()
-      })
-
-      // ✅ Tab buttons added here!
-      document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'))
-      document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'))
     })
-  </script>
-</head>
-<body>
-  <div id="auth-section">
-    <h2>Login / Sign Up</h2>
-    <form id="auth-form">
-      <input type="email" id="email" placeholder="Email" required />
-      <input type="password" id="password" placeholder="Password" required />
-      <button type="submit">Enter</button>
-    </form>
-  </div>
 
-  <div id="tabs">
-    <button id="chat-tab" class="tab-btn">Chat</button>
-    <button id="settings-tab" class="tab-btn">Profile</button>
-  </div>
+    authForm.addEventListener("submit", async (e) => {
+      e.preventDefault()
+      const email = document.getElementById("email").value
+      const password = document.getElementById("password").value
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password })
+        if (signUpError) alert("Error signing up: " + signUpError.message)
+      }
+    })
 
-  <div id="chat-section">
-    <div id="messages"></div>
-    <form id="chat-form">
-      <input id="message" type="text" placeholder="Say something..." required />
-      <button type="submit">Send</button>
-    </form>
-  </div>
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault()
+      await sendMessage(messageInput.value)
+      messageInput.value = ""
+    })
 
-  <div id="profile-section">
-    <h2>Profile</h2>
-    <button id="change-username-btn">Change Username</button>
-    <button id="sign-out-btn">Sign Out</button>
-  </div>
+    changeUsernameBtn.addEventListener("click", () => {
+      usernameModal.style.display = "block"
+    })
 
-  <div id="username-modal">
-    <div class="modal-content">
-      <form id="username-form">
-        <label>New Username:</label>
-        <input id="new-username" type="text" required />
-        <button type="submit">Save</button>
-        <button type="button" id="close-modal">Cancel</button>
-      </form>
-    </div>
-  </div>
-</body>
-</html>
+    closeModalBtn.addEventListener("click", () => {
+      usernameModal.style.display = "none"
+    })
+
+    usernameForm.addEventListener("submit", async (e) => {
+      e.preventDefault()
+      await updateUserMetadata(newUsernameInput.value)
+      usernameModal.style.display = "none"
+    })
+
+    signOutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut()
+      location.reload()
+    })
+
+    document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'))
+    document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'))
+  })
+</script>
