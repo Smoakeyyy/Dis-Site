@@ -27,7 +27,6 @@
       margin-top: 2rem;
     }
 
-    /* Tabs */
     #tabs {
       display: none;
       margin-top: 1rem;
@@ -45,7 +44,6 @@
       border-bottom: 2px solid #333;
     }
 
-    /* Modal styles */
     #username-modal {
       display: none;
       position: fixed;
@@ -67,7 +65,7 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA';
+    const supabaseKey = 'your-public-key-here'; // Replace with your actual anon/public key
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
@@ -89,7 +87,7 @@
       data.forEach(msg => {
         const el = document.createElement('div');
         el.className = 'message';
-        el.textContent = ${msg.username}: ${msg.content};
+        el.textContent = `${msg.username}: ${msg.content}`;
         messagesDiv.appendChild(el);
       });
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -109,7 +107,7 @@
           const msg = payload.new;
           const el = document.createElement('div');
           el.className = 'message';
-          el.textContent = ${msg.username}: ${msg.content};
+          el.textContent = `${msg.username}: ${msg.content}`;
           const messages = document.getElementById('messages');
           messages.appendChild(el);
           messages.scrollTop = messages.scrollHeight;
@@ -237,7 +235,6 @@
         location.reload();
       });
 
-      // Tab buttons
       document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'));
       document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'));
     });
@@ -264,26 +261,24 @@
   <div id="chat-section">
     <div id="messages"></div>
     <form id="chat-form">
-      <input type="text" id="message" placeholder="Type your message..." required autocomplete="off"/>
+      <input type="text" id="message" placeholder="Type your message..." required />
       <button type="submit">Send</button>
     </form>
   </div>
 
   <div id="profile-section">
-    <h2>👤 Profile</h2>
-    <button id="change-username-btn">Change Username</button>
-    <br/><br/>
+    <button id="change-username-btn">Change Display Name</button><br /><br />
     <button id="sign-out-btn">Sign Out</button>
   </div>
 
   <div id="username-modal">
     <div class="modal-content">
-      <h2>Change Display Name</h2>
+      <span id="close-modal" style="float:right; cursor:pointer;">&times;</span>
+      <h3>Change Display Name</h3>
       <form id="username-form">
         <input type="text" id="new-username" required />
         <button type="submit">Update</button>
       </form>
-      <button id="close-modal" style="margin-top: 10px;">Close</button>
     </div>
   </div>
 </body>
