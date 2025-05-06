@@ -3,287 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dis-Site</title>
+  <title>Real-Time Chat</title>
   <style>
-    body {
-      font-family: sans-serif;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 1rem;
-    }
-    #messages {
-      border: 1px solid #ccc;
-      padding: 1rem;
-      height: 300px;
-      overflow-y: auto;
-      margin-bottom: 1rem;
-    }
-    .message {
-      margin-bottom: 0.5rem;
-    }
-
-    #chat-section, #profile-section {
-      display: none;
-      margin-top: 2rem;
-    }
-
-    /* Tabs */
-    #tabs {
-      display: none;
-      margin-top: 1rem;
-      border-bottom: 1px solid #ccc;
-    }
-    .tab-btn {
-      background: none;
-      border: none;
-      font-size: 1rem;
-      margin-right: 1rem;
-      cursor: pointer;
-    }
-    .tab-btn.active {
-      font-weight: bold;
-      border-bottom: 2px solid #333;
-    }
-
-    /* Modal styles */
-    #username-modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      left: 0; top: 0; width: 100%; height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-      background: #fff;
-      padding: 20px;
-      margin: 10% auto;
-      width: 80%;
-      max-width: 400px;
-      border-radius: 8px;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    #chat-section, #profile-section, #tabs { display: none; }
+    .tab-btn { margin-right: 10px; padding: 10px; }
+    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; margin-bottom: 10px; }
+    .message { margin-bottom: 5px; }
+    #username-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; padding: 20px; margin: 100px auto; width: 300px; }
   </style>
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-    const supabaseUrl = 'https://otlbovqmbgmblrnkkbtd.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bGJvdnFtYmdtYmxybmtrYnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NDA5NTMsImV4cCI6MjA2MTIxNjk1M30.Il51Xc9gUkRonNSeChDB-usz2bCp30R_mL99d5sWxSA';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseUrl = "https://wspnhkdyzkhpquzmmzrl.supabase.co"
+    const supabaseKey = "YOUR_ANON_KEY"
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
-    let currentUser = null;
-    let username = '';
+    const messagesDiv = document.getElementById("messages")
+    const chatForm = document.getElementById("chat-form")
+    const messageInput = document.getElementById("message")
+    const authSection = document.getElementById("auth-section")
+    const chatSection = document.getElementById("chat-section")
+    const profileSection = document.getElementById("profile-section")
+    const tabs = document.getElementById("tabs")
+    const authForm = document.getElementById("auth-form")
+    const usernameModal = document.getElementById("username-modal")
+    const usernameForm = document.getElementById("username-form")
+    const newUsernameInput = document.getElementById("new-username")
+    const changeUsernameBtn = document.getElementById("change-username-btn")
+    const closeModalBtn = document.getElementById("close-modal")
+    const signOutBtn = document.getElementById("sign-out-btn")
 
-    async function loadMessages() {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+    let currentUser = null
+
+    const showTab = (tab) => {
+      chatSection.style.display = tab === "chat" ? "block" : "none"
+      profileSection.style.display = tab === "settings" ? "block" : "none"
+    }
+
+    const loadMessages = async () => {
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: true })
+
+      messagesDiv.innerHTML = ""
+      messages.forEach((msg) => {
+        const div = document.createElement("div")
+        div.className = "message"
+        div.textContent = `${msg.username}: ${msg.text}`
+        messagesDiv.appendChild(div)
+      })
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight
+    }
+
+    const setupRealtime = () => {
+      supabase
+        .channel("messages")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+          const msg = payload.new
+          const div = document.createElement("div")
+          div.className = "message"
+          div.textContent = `${msg.username}: ${msg.text}`
+          messagesDiv.appendChild(div)
+          messagesDiv.scrollTop = messagesDiv.scrollHeight
+        })
+        .subscribe()
+    }
+
+    const showMainUI = () => {
+      authSection.style.display = "none"
+      tabs.style.display = "block"
+      chatSection.style.display = "block"
+    }
+
+    const updateUserMetadata = async (newUsername) => {
+      const { data, error } = await supabase.auth.updateUser({
+        data: { username: newUsername }
+      })
 
       if (error) {
-        console.error(error);
-        return;
-      }
-
-      const messagesDiv = document.getElementById('messages');
-      messagesDiv.innerHTML = '';
-      data.forEach(msg => {
-        const el = document.createElement('div');
-        el.className = 'message';
-        el.textContent = `${msg.username}: ${msg.content}`;
-        messagesDiv.appendChild(el);
-      });
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    async function sendMessage(content) {
-      const { error } = await supabase.from('messages').insert([
-        { username, content }
-      ]);
-      if (error) console.error(error);
-    }
-
-    function setupRealtime() {
-      supabase
-        .channel('messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-          const msg = payload.new;
-          const el = document.createElement('div');
-          el.className = 'message';
-          el.textContent = `${msg.username}: ${msg.content}`;
-          const messages = document.getElementById('messages');
-          messages.appendChild(el);
-          messages.scrollTop = messages.scrollHeight;
-        })
-        .subscribe();
-    }
-
-    async function loadProfile() {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Profile load error:', error);
-      }
-
-      if (data) {
-        username = data.username;
+        alert("Failed to update username.")
       } else {
-        username = prompt("Choose a display name:");
-        await supabase.from('profiles').insert([{ id: currentUser.id, username }]);
+        alert("Username updated!")
       }
     }
 
-    async function changeUsername(newName) {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ username: newName })
-        .eq('id', currentUser.id);
-
-      if (!error) {
-        username = newName;
-        alert('Username updated!');
-        document.getElementById('username-modal').style.display = 'none';
-      } else {
-        console.error('Error updating username:', error);
-        alert('Failed to update username.');
-      }
+    const sendMessage = async (text) => {
+      if (!currentUser || !text.trim()) return
+      const username = currentUser.user_metadata?.username || "Anonymous"
+      await supabase.from("messages").insert([{ username, text }])
     }
 
-    function showTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.getElementById('chat-tab').classList.remove('active');
-      document.getElementById('settings-tab').classList.remove('active');
-      document.getElementById(tabId + '-tab').classList.add('active');
-
-      document.getElementById('chat-section').style.display = (tabId === 'chat') ? 'block' : 'none';
-      document.getElementById('profile-section').style.display = (tabId === 'settings') ? 'block' : 'none';
-    }
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      currentUser = user;
-
-      if (user) {
-        await loadProfile();
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('tabs').style.display = 'block';
-        showTab('chat');
-        loadMessages();
-        setupRealtime();
+    document.addEventListener("DOMContentLoaded", async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        currentUser = session.user
+        showMainUI()
+        loadMessages()
+        setupRealtime()
       }
 
-      document.getElementById('auth-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (session?.user) {
+          currentUser = session.user
+          showMainUI()
+          loadMessages()
+          setupRealtime()
+        }
+      })
 
-        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
+      authForm.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        const email = document.getElementById("email").value
+        const password = document.getElementById("password").value
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) {
-          ({ data, error } = await supabase.auth.signUp({ email, password }));
-          if (error) {
-            alert('Signup/Login failed: ' + error.message);
-            return;
-          }
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password })
+          if (signUpError) alert("Error signing up: " + signUpError.message)
         }
+      })
 
-        currentUser = data.user;
-        await loadProfile();
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('tabs').style.display = 'block';
-        showTab('chat');
-        loadMessages();
-        setupRealtime();
-      });
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        await sendMessage(messageInput.value)
+        messageInput.value = ""
+      })
 
-      document.getElementById('chat-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const input = document.getElementById('message');
-        const content = input.value.trim();
-        if (content) {
-          await sendMessage(content);
-          input.value = '';
-        }
-      });
+      changeUsernameBtn.addEventListener("click", () => {
+        usernameModal.style.display = "block"
+      })
 
-      document.getElementById('change-username-btn').addEventListener('click', () => {
-        document.getElementById('username-modal').style.display = 'block';
-        document.getElementById('new-username').value = username;
-      });
+      closeModalBtn.addEventListener("click", () => {
+        usernameModal.style.display = "none"
+      })
 
-      document.getElementById('close-modal').addEventListener('click', () => {
-        document.getElementById('username-modal').style.display = 'none';
-      });
+      usernameForm.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        await updateUserMetadata(newUsernameInput.value)
+        usernameModal.style.display = "none"
+      })
 
-      window.addEventListener('click', e => {
-        if (e.target === document.getElementById('username-modal')) {
-          document.getElementById('username-modal').style.display = 'none';
-        }
-      });
+      signOutBtn.addEventListener("click", async () => {
+        await supabase.auth.signOut()
+        location.reload()
+      })
 
-      document.getElementById('username-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const newName = document.getElementById('new-username').value.trim();
-        if (newName) {
-          await changeUsername(newName);
-        }
-      });
-
-      document.getElementById('sign-out-btn').addEventListener('click', async () => {
-        await supabase.auth.signOut();
-        location.reload();
-      });
-
-      // Tab buttons
-      document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'));
-      document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'));
-    });
+      // ✅ Tab buttons added here!
+      document.getElementById('chat-tab').addEventListener('click', () => showTab('chat'))
+      document.getElementById('settings-tab').addEventListener('click', () => showTab('settings'))
+    })
   </script>
 </head>
 <body>
-  <h1>🗨️Dis-Site</h1>
-
   <div id="auth-section">
+    <h2>Login / Sign Up</h2>
     <form id="auth-form">
-      <label>Email:</label><br />
-      <input type="email" id="email" required /><br />
-      <label>Password:</label><br />
-      <input type="password" id="password" required /><br /><br />
-      <button type="submit">Sign In / Sign Up</button>
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit">Enter</button>
     </form>
   </div>
 
   <div id="tabs">
-    <button id="chat-tab" class="tab-btn active">💬 Chat</button>
-    <button id="settings-tab" class="tab-btn">⚙️ Settings</button>
+    <button id="chat-tab" class="tab-btn">Chat</button>
+    <button id="settings-tab" class="tab-btn">Profile</button>
   </div>
 
   <div id="chat-section">
     <div id="messages"></div>
     <form id="chat-form">
-      <input type="text" id="message" placeholder="Type your message..." required autocomplete="off"/>
+      <input id="message" type="text" placeholder="Say something..." required />
       <button type="submit">Send</button>
     </form>
   </div>
 
   <div id="profile-section">
-    <h2>👤 Profile</h2>
+    <h2>Profile</h2>
     <button id="change-username-btn">Change Username</button>
-    <br/><br/>
     <button id="sign-out-btn">Sign Out</button>
   </div>
 
   <div id="username-modal">
     <div class="modal-content">
-      <h2>Change Display Name</h2>
       <form id="username-form">
-        <input type="text" id="new-username" required />
-        <button type="submit">Update</button>
+        <label>New Username:</label>
+        <input id="new-username" type="text" required />
+        <button type="submit">Save</button>
+        <button type="button" id="close-modal">Cancel</button>
       </form>
-      <button id="close-modal" style="margin-top: 10px;">Close</button>
     </div>
   </div>
 </body>
